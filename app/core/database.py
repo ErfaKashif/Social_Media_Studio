@@ -1,4 +1,3 @@
-# app/core/database.py
 import sqlite3
 import os
 

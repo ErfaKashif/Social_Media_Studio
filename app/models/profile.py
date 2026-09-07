@@ -1,4 +1,3 @@
-# app/models/profiles.py
 from pydantic import BaseModel
 
 class PlatformConstraint(BaseModel):

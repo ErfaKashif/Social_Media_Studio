@@ -1,10 +1,12 @@
-# app/main.py
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
 from app.core.database import init_db
 from app.services.ingestion import ingest_post, create_variant
 from app.services.validater import ConstraintViolationError
 from app.services.workflow import update_variant_status, schedule_variant, WorkflowError
+from app.services.publisher import execute_idempotent_publish
+from app.services.scheduler import start_scheduler
+from app.core.database import get_db_connection
 
 app = FastAPI(title="Social Media Studio API")
 
@@ -12,6 +14,24 @@ app = FastAPI(title="Social Media Studio API")
 def startup_event():
     init_db()
 
+@app.on_event("startup")
+def startup_event():
+    init_db()
+    start_scheduler()
+
+@app.get("/api/history")
+def get_publish_history():
+    """Returns full audit trail of publish attempts."""
+    conn = get_db_connection()
+    cur = conn.execute(
+        """SELECT h.id, h.slot_id, h.variant_id, h.platform, h.status, 
+                  h.response_payload, h.attempted_at 
+           FROM publish_history h 
+           ORDER BY h.attempted_at DESC"""
+    )
+    history = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return {"history": history}
 # --- Request Models ---
 class IngestRequest(BaseModel):
     title: str
@@ -55,3 +75,7 @@ def schedule_variant_endpoint(payload: ScheduleRequest):
     except WorkflowError as e:
         # Returns 400 Bad Request if unapproved
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+@app.post("/api/schedule/{slot_id}/publish")
+async def trigger_publish_endpoint(slot_id: int):
+    return await execute_idempotent_publish(slot_id)

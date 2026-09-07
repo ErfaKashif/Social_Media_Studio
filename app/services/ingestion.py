@@ -1,4 +1,3 @@
-# app/services/ingestion.py
 from app.core.database import get_db_connection
 from app.services.validater import validate_variant
 
