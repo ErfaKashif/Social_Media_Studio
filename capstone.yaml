@@ -1,0 +1,25 @@
+version: "1.0"
+name: "flyrank-capstone-social-studio"
+language: "python"
+framework: "fastapi"
+
+# Single command to start the application server
+run: "python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+# Command to populate initial seed data for evaluation
+seed: "python -c 'from app.core.database import init_db; init_db()'"
+
+# Command to run automated test suite
+test: "pytest"
+
+# Base API URL during evaluation runs
+base_url: "http://127.0.0.1:8000"
+
+# Specific API endpoints checked by automated probes
+endpoints:
+  ingest: "POST /api/posts"
+  generate_variants: "POST /api/variants/ai-generate"
+  approve_variant: "PATCH /api/variants/{id}/status"
+  schedule_slot: "POST /api/schedule"
+  publish_slot: "POST /api/schedule/{id}/publish"
+  publish_history: "GET /api/history"
