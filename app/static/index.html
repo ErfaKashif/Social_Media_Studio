@@ -116,15 +116,36 @@
         }
 
         async function generateAIVariant() {
-            document.getElementById('variantOutput').innerHTML = `<p>Querying local Ollama model (llama3.2:3b)...</p>`;
+            const outputDiv = document.getElementById('variantOutput');
+            outputDiv.innerHTML = `<p style="color: #0066cc;">Querying local Ollama model (llama3.2:3b)...</p>`;
+
             const body = {
                 post_id: parseInt(document.getElementById('variantPostId').value),
                 platform: document.getElementById('platformSelect').value,
                 source_content: document.getElementById('postContent').value
             };
-            const res = await fetch(`${API_BASE}/variants/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
-            const data = await res.json();
-            document.getElementById('variantOutput').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+
+            try {
+                const res = await fetch(`${API_BASE}/variants/ai-generate`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body)
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    // Displays 400/500/503 errors clearly in red instead of freezing
+                    outputDiv.innerHTML = `<pre style="color: #dc3545; border: 1px solid #dc3545;">Error ${res.status}: ${data.detail || JSON.stringify(data, null, 2)}</pre>`;
+                    return;
+                }
+
+                outputDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+
+            } catch (err) {
+                // Catches network failures or complete server disconnects
+                outputDiv.innerHTML = `<pre style="color: #dc3545; border: 1px solid #dc3545;">Network Error: Failed to communicate with backend service.\n${err.message}</pre>`;
+            }
         }
 
         async function updateStatus(status) {

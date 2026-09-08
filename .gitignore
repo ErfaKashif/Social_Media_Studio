@@ -1,0 +1,27 @@
+# Environment variables and secrets (CRITICAL)
+.env
+
+# Python virtual environment
+.venv/
+venv/
+ENV/
+
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Local SQLite databases & test databases
+data/*.db
+*.sqlite3
+
+# IDE / Editor configuration
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
