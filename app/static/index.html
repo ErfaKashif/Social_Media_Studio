@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Media Studio</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 30px auto; padding: 0 20px; background: #f8f9fa; color: #333; }
+        h1, h2 { color: #1a1a1a; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-top: 10px; }
+        input, select, textarea, button { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background: #0066cc; color: white; font-weight: bold; cursor: pointer; border: none; margin-top: 15px; }
+        button:hover { background: #0052a3; }
+        .btn-group { display: flex; gap: 10px; }
+        .btn-ai { background: #6f42c1; }
+        .btn-ai:hover { background: #5a32a3; }
+        pre { background: #272822; color: #f8f8f2; padding: 15px; border-radius: 6px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+
+    <h1>Social Media Studio</h1>
+
+    <!-- 1. Post Ingestion -->
+    <div class="card">
+        <h2>1. Ingest Source Content</h2>
+        <label>Title</label>
+        <input type="text" id="postTitle" placeholder="e.g., Launching Our New System">
+
+        <label>Source Type</label>
+        <select id="sourceType">
+            <option value="markdown">Markdown Text</option>
+            <option value="url">URL Link</option>
+        </select>
+
+        <label>Content</label>
+        <textarea id="postContent" rows="4" placeholder="Paste full blog post or article text here..."></textarea>
+
+        <button onclick="ingestPost()">Save Post</button>
+        <div id="ingestOutput"></div>
+    </div>
+
+    <!-- 2. Variant Creation & Local Ollama Generation -->
+    <div class="card">
+        <h2>2. Create or Generate Variant</h2>
+        <label>Post ID</label>
+        <input type="number" id="variantPostId" value="1">
+
+        <label>Platform</label>
+        <select id="platformSelect">
+            <option value="discord">Discord</option>
+            <option value="x">X (Twitter)</option>
+            <option value="linkedin">LinkedIn</option>
+        </select>
+
+        <label>Variant Content (Optional if generating with AI)</label>
+        <textarea id="variantContent" rows="3" placeholder="Write manual variant or click 'Generate with Ollama'..."></textarea>
+
+        <div class="btn-group">
+            <button onclick="createVariant()">Save Manual Variant</button>
+            <button class="btn-ai" onclick="generateAIVariant()">Generate with Ollama (llama3.2:3b)</button>
+        </div>
+        <div id="variantOutput"></div>
+    </div>
+
+    <!-- 3. Review & Schedule -->
+    <div class="card">
+        <h2>3. Review & Schedule Workflow</h2>
+        <label>Variant ID</label>
+        <input type="number" id="reviewVariantId" value="1">
+
+        <div class="btn-group">
+            <button style="background: #28a745;" onclick="updateStatus('approved')">Approve Variant</button>
+            <button style="background: #dc3545;" onclick="updateStatus('rejected')">Reject Variant</button>
+        </div>
+
+        <label style="margin-top:20px;">Schedule Time</label>
+        <input type="datetime-local" id="scheduleTime">
+        <button onclick="scheduleSlot()">Queue Schedule Slot</button>
+
+        <button style="background: #17a2b8; margin-top: 10px;" onclick="triggerPublish()">Trigger Execution</button>
+        <div id="workflowOutput"></div>
+    </div>
+
+    <!-- 4. Audit Trail -->
+    <div class="card">
+        <h2>4. Audit History Log</h2>
+        <button style="background: #6c757d;" onclick="fetchHistory()">Refresh History</button>
+        <pre id="historyOutput">Click refresh to view publication logs...</pre>
+    </div>
+
+    <script>
+        const API_BASE = "http://127.0.0.1:8000/api";
+
+        async function ingestPost() {
+            const body = {
+                title: document.getElementById('postTitle').value,
+                source_type: document.getElementById('sourceType').value,
+                content: document.getElementById('postContent').value
+            };
+            const res = await fetch(`${API_BASE}/posts`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+            const data = await res.json();
+            document.getElementById('ingestOutput').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        async function createVariant() {
+            const body = {
+                post_id: parseInt(document.getElementById('variantPostId').value),
+                platform: document.getElementById('platformSelect').value,
+                content: document.getElementById('variantContent').value
+            };
+            const res = await fetch(`${API_BASE}/variants`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+            const data = await res.json();
+            document.getElementById('variantOutput').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        async function generateAIVariant() {
+            document.getElementById('variantOutput').innerHTML = `<p>Querying local Ollama model (llama3.2:3b)...</p>`;
+            const body = {
+                post_id: parseInt(document.getElementById('variantPostId').value),
+                platform: document.getElementById('platformSelect').value,
+                source_content: document.getElementById('postContent').value
+            };
+            const res = await fetch(`${API_BASE}/variants/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+            const data = await res.json();
+            document.getElementById('variantOutput').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        async function updateStatus(status) {
+            const variantId = document.getElementById('reviewVariantId').value;
+            const res = await fetch(`${API_BASE}/variants/${variantId}/status?status_value=${status}`, { method: 'PATCH' });
+            const data = await res.json();
+            document.getElementById('workflowOutput').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        async function scheduleSlot() {
+            const body = {
+                variant_id: parseInt(document.getElementById('reviewVariantId').value),
+                scheduled_time: document.getElementById('scheduleTime').value.replace("T", " ") + ":00"
+            };
+            const res = await fetch(`${API_BASE}/schedule`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+            const data = await res.json();
+            document.getElementById('workflowOutput').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        async function triggerPublish() {
+            const slotId = document.getElementById('reviewVariantId').value;
+            const res = await fetch(`${API_BASE}/schedule/${slotId}/publish`, { method: 'POST' });
+            const data = await res.json();
+            document.getElementById('workflowOutput').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        async function fetchHistory() {
+            const res = await fetch(`${API_BASE}/history`);
+            const data = await res.json();
+            document.getElementById('historyOutput').textContent = JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+</html>
